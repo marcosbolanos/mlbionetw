@@ -1,0 +1,55 @@
+# =========================
+# OS / Editor noise
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# R global/user files
+# =========================
+.Rhistory
+.RData
+.Ruserdata
+.Rproj.user/
+
+# =========================
+# RStudio state (local only)
+# =========================
+.config/rstudio/
+.local/share/rstudio/
+
+# =========================
+# R session artifacts
+# =========================
+*.RData
+*.Rdata
+*.rds
+*.rdx
+
+# =========================
+# R plots / cache / temp
+# =========================
+.Rcache/
+.Rtmp/
+rsconnect/
+*_cache/
+*_files/
+
+# =========================
+# Notebook / viewer output
+# =========================
+*.html
+*.snapshot
+
+# =========================
+# Logs and lock files
+# =========================
+*.log
+*.lock
+
+# =========================
+# Backup / temp files
+# =========================
+*~
+*.swp
+*.bak

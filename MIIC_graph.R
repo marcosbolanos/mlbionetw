@@ -9,7 +9,7 @@ data <- na.omit(data)
 
 miic_obj <- miic(
   input_data = data, latent = "yes",
-  n_shuffles = 10, conf_threshold = 0.001
+  n_shuffles = 50, conf_threshold = 0.05
 )
 
 # plot graph with igraph
@@ -21,13 +21,34 @@ g <- export(
   miic_obj,
   method = "igraph",
   pcor_palette = NULL,
-  display = "compact",
+  #display = "compact",
   show_self_loops = TRUE
 )
 
 g <- delete.vertices(g, degree(g) == 0)
 
-plot(g)
+plot(
+  g,
+  layout = layout_with_fr(g),
+  
+  # vertices
+  vertex.size = 4,
+  vertex.color = "#D6ECFA",        # light blue fill
+  vertex.frame.color = "#4A90C2",  # slightly darker blue outline
+  vertex.label.color = "black",
+  vertex.label.cex = 0.6,
+  vertex.label.font = 2,      # bold
+  vertex.label.family = "Nimbus Sans",
+  vertex.label.dist = 0.5,
+  
+  # edges
+  edge.width = 2,
+  edge.arrow.size = 0.25,
+  
+  # global
+  margin = 0
+)
+
 
 # plot 'SEX' vs 'DLIT_AG' variable
 plot(data$SEX, data$DLIT_AG)
