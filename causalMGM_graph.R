@@ -4,131 +4,92 @@ if (!require(devtools, quietly = TRUE))
   install.packages("devtools")
 
 devtools::install_github("tyler-lovelace1/rCausalMGM")
-
 library(rCausalMGM)
 
 data <- read.csv("/home/rstudio/data/MI.csv")
-
 data <- data[, colSums(is.na(data)) <= 0.2 * nrow(data)]
-
 data <- na.omit(data)
+data$X <- NULL
+
+# define the complications variables
+complications <- list('FIBR_PREDS',
+                      'PREDS_TAH',
+                      'JELUD_TAH',
+                      'FIBR_JELUD',
+                      'A_V_BLOK',
+                      'OTEK_LANC',
+                      'RAZRIV',
+                      'DRESSLER',
+                      'ZSN',
+                      'REC_IM',
+                      'P_IM_STEN',
+                      'LET_IS')
 
 nzv <- sapply(data, function(x) length(unique(x)) > 1)
 data <- data[, nzv]
 
 
+## HELPER FUNCTION
+parse_edges <- function(edge_strings) {
+  edges <- do.call(
+    rbind,
+    strsplit(edge_strings, "\\s+-+>|\\s+<-+\\s+|\\s+--+\\s+|\\s+o-o\\s+|\\s+o->\\s+")
+  )
+  colnames(edges) <- c("from", "to")
+  as.data.frame(edges, stringsAsFactors = FALSE)
+}
+
+# make undirected sceleton
 ig <- mgm(data, lambda=0.05, verbose=T)
-
-
 print(ig)
 
-
-library(igraph)
-
-# Extract edge strings
-edge_strings <- ig$edges
-
-# Split "A --- B" into two columns
-edge_list <- do.call(
-  rbind,
-  strsplit(edge_strings, " --- ", fixed = TRUE)
-)
-
-edge_df <- as.data.frame(edge_list, stringsAsFactors = FALSE)
-colnames(edge_df) <- c("from", "to")
-
-g_igraph <- graph_from_data_frame(
-  d = edge_df,
-  vertices = ig$nodes,
-  directed = TRUE
-)
-
-g <- delete_vertices(g_igraph, degree(g) == 0)
-
-plot(
-  g,
-  layout = layout_with_fr(g),
-  
-  # vertices
-  vertex.size = 4,
-  vertex.color = "#D6ECFA",        # light blue fill
-  vertex.frame.color = "#4A90C2",  # slightly darker blue outline
-  vertex.label.color = "black",
-  vertex.label.cex = 0.6,
-  vertex.label.font = 2,      # bold
-  vertex.label.family = "Nimbus Sans",
-  vertex.label.dist = 0.5,
-  
-  # edges
-  edge.width = 2,
-  edge.arrow.size = 0.25,
-  
-  # global
-  margin = 0
-)
-
 # now make a directed graph
-# first code from binary to factor
 
-# Identify numeric columns with < 10 unique values
-low_cardinality <- sapply(data, function(x) {
-  is.numeric(x) && length(unique(na.omit(x))) < 10
-})
-
-names(data)[low_cardinality]
-
-# convert
-data[low_cardinality] <- lapply(data[low_cardinality], factor)
-
-# unbalanced columns
-invalid_vars <- sapply(data, function(x) {
-  if (is.numeric(x)) {
-    length(unique(na.omit(x))) <= 1
-  } else if (is.factor(x)) {
-    any(table(x) < 5)
-  } else {
-    FALSE
-  }
-})
-
-names(data)[invalid_vars]
-data <- data[, !invalid_vars, drop = FALSE]
-
-ig_directed = pcStable(data, ig)
+ig_directed = pcStable(data, ig, alpha = 0.001)
 
 print(ig_directed)
 
-# Extract edge strings
-edge_strings <- ig_directed$edges
+edge_df_dir <- parse_edges(ig_directed$edges)
 
-# Split "A --- B" into two columns
-edge_list <- do.call(
-  rbind,
-  strsplit(edge_strings, " --- ", fixed = TRUE)
-)
+vertex_names_dir <- sort(unique(c(edge_df_dir$from, edge_df_dir$to)))
 
-edge_df <- as.data.frame(edge_list, stringsAsFactors = FALSE)
-colnames(edge_df) <- c("from", "to")
-
-g_igraph <- graph_from_data_frame(
-  d = edge_df,
+g_pc <- graph_from_data_frame(
+  d = edge_df_dir,
+  vertices = data.frame(name = vertex_names_dir),
   directed = TRUE
 )
 
 
-g <- delete_vertices(g_igraph, degree(g) == 0)
+# logical vector: TRUE if vertex is a complication
+is_complication <- V(g_pc)$name %in% complications
+complication_vertices <- V(g_pc)[is_complication]
+
+# vertex fill colors
+vertex_fill <- ifelse(
+  is_complication,
+  "#FF7F50",   # coral
+  "#D6ECFA"    # light blue
+)
+
+# vertex border (frame) colors
+vertex_border <- ifelse(
+  is_complication,
+  "#B22222",   # dark red
+  "#4A90C2"    # blue outline
+)
+
 
 plot(
-  g,
-  layout = layout_with_fr(g),
+  g_pc,
+  layout = layout_with_dh(g_pc),
   
   # vertices
   vertex.size = 4,
-  vertex.color = "#D6ECFA",        # light blue fill
-  vertex.frame.color = "#4A90C2",  # slightly darker blue outline
+  vertex.color = vertex_fill,
+  vertex.frame.color = vertex_border,
   vertex.label.color = "black",
   vertex.label.cex = 0.6,
-  vertex.label.font = 2,      # bold
+  vertex.label.font = 2,
   vertex.label.family = "Nimbus Sans",
   vertex.label.dist = 0.5,
   
@@ -139,3 +100,4 @@ plot(
   # global
   margin = 0
 )
+
