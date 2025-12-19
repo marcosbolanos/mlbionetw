@@ -2,7 +2,8 @@ library(igraph)
 library(miic)
 
 data <- read.csv("/home/rstudio/data/MI.csv")
-data <- data[, colSums(is.na(data)) <= 0.2 * nrow(data)]
+# keep less columns
+data <- data[, colSums(is.na(data)) <= 0.1 * nrow(data)]
 data <- na.omit(data)
 data$X <- NULL
 

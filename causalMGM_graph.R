@@ -7,7 +7,7 @@ devtools::install_github("tyler-lovelace1/rCausalMGM")
 library(rCausalMGM)
 
 data <- read.csv("/home/rstudio/data/MI.csv")
-data <- data[, colSums(is.na(data)) <= 0.2 * nrow(data)]
+data <- data[, colSums(is.na(data)) <= 0.1 * nrow(data)]
 data <- na.omit(data)
 data$X <- NULL
 
@@ -31,12 +31,26 @@ data <- data[, nzv]
 
 ## HELPER FUNCTION
 parse_edges <- function(edge_strings) {
-  edges <- do.call(
-    rbind,
-    strsplit(edge_strings, "\\s+-+>|\\s+<-+\\s+|\\s+--+\\s+|\\s+o-o\\s+|\\s+o->\\s+")
-  )
-  colnames(edges) <- c("from", "to")
-  as.data.frame(edges, stringsAsFactors = FALSE)
+  edges <- data.frame(from = character(), to = character(), stringsAsFactors = FALSE)
+  
+  for (edge_str in edge_strings) {
+    # Remove leading/trailing whitespace
+    edge_str <- trimws(edge_str)
+    
+    if (grepl(" --> ", edge_str)) {
+      # Directed edge: A --> B
+      parts <- strsplit(edge_str, " --> ", fixed = TRUE)[[1]]
+      edges <- rbind(edges, data.frame(from = parts[1], to = parts[2], stringsAsFactors = FALSE))
+    } else if (grepl(" --- ", edge_str)) {
+      # Undirected edge: A --- B (treat as bidirectional or as single undirected)
+      parts <- strsplit(edge_str, " --- ", fixed = TRUE)[[1]]
+      edges <- rbind(edges, data.frame(from = parts[1], to = parts[2], stringsAsFactors = FALSE))
+      # For directed graph, you might want to add both directions:
+      edges <- rbind(edges, data.frame(from = parts[2], to = parts[1], stringsAsFactors = FALSE))
+    }
+  }
+  
+  edges
 }
 
 # make undirected sceleton
@@ -101,3 +115,55 @@ plot(
   margin = 0
 )
 
+# neighbors of all complication nodes
+connected_vertices <- unique(
+  unlist(
+    neighborhood(
+      g_pc,
+      order = 1,
+      nodes = complication_vertices,
+      mode = "all"
+    )
+  )
+)
+
+g_comp <- induced_subgraph(
+  g_pc,
+  vids = connected_vertices
+)
+
+is_complication_comp <- V(g_comp)$name %in% complications
+
+vertex_fill_comp <- ifelse(
+  is_complication_comp,
+  "#FF7F50",   # coral
+  "#D6ECFA"
+)
+
+vertex_border_comp <- ifelse(
+  is_complication_comp,
+  "#B22222",   # red border
+  "#4A90C2"
+)
+
+plot(
+  g_comp,
+  layout = layout_with_fr(g_comp),
+  
+  # vertices
+  vertex.size = 5,
+  vertex.color = vertex_fill_comp,
+  vertex.frame.color = vertex_border_comp,
+  vertex.label.color = "black",
+  vertex.label.cex = 0.65,
+  vertex.label.font = 2,
+  vertex.label.family = "Nimbus Sans",
+  
+  # edges
+  edge.width = 2,
+  edge.arrow.size = 0.3,
+  
+  margin = 0
+)
+
+print(ig_directed$edges)
